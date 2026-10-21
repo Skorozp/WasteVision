@@ -1,0 +1,19 @@
+Validation Loss: 0.3323
+Validation Accuracy: 88.08%
+Correct predictions: 628/713
+
+                     precision    recall  f1-score   support
+
+          Cardboard       0.86      0.88      0.87        69
+      Food Organics       0.95      0.90      0.92        61
+              Glass       0.86      0.87      0.87        63
+              Metal       0.90      0.91      0.90       119
+Miscellaneous Trash       0.86      0.82      0.84        74
+              Paper       0.90      0.87      0.88        75
+            Plastic       0.81      0.84      0.83       138
+      Textile Trash       0.91      0.88      0.89        48
+         Vegetation       0.96      0.98      0.97        66
+
+           accuracy                           0.88       713
+          macro avg       0.89      0.88      0.89       713
+       weighted avg       0.88      0.88      0.88       713
