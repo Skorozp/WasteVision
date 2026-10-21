@@ -1,0 +1,28 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# IDE and macOS
+.idea/
+.vscode/
+.DS_Store
+
+# Dataset
+data/raw/
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Training artifacts
+runs/
+logs/
+wandb/
