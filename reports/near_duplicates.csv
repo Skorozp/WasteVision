@@ -1,0 +1,5 @@
+split_a,split_b,image_a,image_b,phash_distance
+Train,Validation,data/raw/realwaste-main/RealWaste/Plastic/Plastic_763.jpg,data/raw/realwaste-main/RealWaste/Plastic/Plastic_204.jpg,2
+Train,Validation,data/raw/realwaste-main/RealWaste/Plastic/Plastic_733.jpg,data/raw/realwaste-main/RealWaste/Plastic/Plastic_688.jpg,4
+Train,Validation,data/raw/realwaste-main/RealWaste/Metal/Metal_738.jpg,data/raw/realwaste-main/RealWaste/Plastic/Plastic_204.jpg,4
+Train,Test,data/raw/realwaste-main/RealWaste/Food Organics/Food Organics_199.jpg,data/raw/realwaste-main/RealWaste/Food Organics/Food Organics_73.jpg,4
