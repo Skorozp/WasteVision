@@ -1,0 +1,12 @@
+.git/
+.venv/
+.idea/
+__pycache__/
+.pytest_cache/
+data/
+reports/
+tests/
+*.pth
+*.pt
+.env
+.DS_Store
