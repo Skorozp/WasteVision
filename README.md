@@ -12,13 +12,27 @@ The project compares two approaches:
 
 The first milestone is a working single-image, single-label classifier. A Telegram bot interface is planned, but is not implemented in the current version.
 
-# Results
-+27.35 (if ve compare WasteCNN and EfficientNet-B0)
+## Results
 
-[!IMPORTANT]
-These are validation results, not final test-set results. The independent test split has deliberately been reserved for final evaluation. Near-duplicate or highly similar images across splits have not yet been audited, so the reported metrics should not be interpreted as a verified deployment accuracy.
+| Model | Approach | Best validation accuracy | Test accuracy |
+|---|---|---:|---:|
+| **WasteCNN** | Custom CNN trained from scratch | 60.73% | Not evaluated |
+| **EfficientNet-B0** | ImageNet-pretrained, frozen feature extractor | **88.08%** | **86.96%** |
 
-# Dataset
+Transfer learning improved the best validation accuracy by **27.35 percentage points** compared with the custom CNN baseline.
+
+The selected EfficientNet-B0 checkpoint achieved the following results on the held-out test set:
+
+| Metric | Result |
+|---|---:|
+| Test images | 713 |
+| Correct predictions | 620 / 713 |
+| **Test accuracy** | **86.96%** |
+| Macro F1-score | **0.8739** |
+| Weighted F1-score | 0.8701 |
+| Test loss | 0.3947 |
+
+## Dataset
 This project uses the RealWaste dataset (UCI Machine Learning Repository).
 - 4,752 images
 - 9 waste categories
@@ -40,7 +54,7 @@ Classes (in the order used by torchvision.datasets.ImageFolder):
 
 The dataset is not redistributed in this repository. Please consult the dataset provider for its terms and attribution requirements.
 
-# Models
+## Models
 1. WasteCNN - a from-scratch baseline
 The custom CNN is intentionally small and interpretable:
 ```commandline
@@ -85,72 +99,209 @@ Dropout + Linear(1280 → 9) (trainable)
 - Frozen feature extractor kept in evaluation mode during classifier training to preserve BatchNorm statistics
 - AdamW (lr=0.001), cross-entropy loss, 30 epochs
 - Training acceleration via Apple Metal Performance Shaders (MPS) when available, with CPU fallback
-# Project structure
+
+## Backend API
+
+The backend uses **FastAPI** and loads the trained EfficientNet-B0 checkpoint once during application startup. It provides two endpoints:
+
+| Endpoint | Description |
+|---|---|
+| `GET /health` | Returns the service status |
+| `POST /predict` | Accepts an image and returns the predicted class and scores |
+
+The `/predict` endpoint accepts JPEG, PNG, and WebP uploads and validates image format and size. The initial implementation limits uploads to **10 MB** and rejects images with more than **16 million pixels**.
+
+Example response from a plastic-bottle photograph:
+
+```json
+{
+  "class_name": "Plastic",
+  "confidence": 0.9971,
+  "probabilities": {
+    "Cardboard": 0.0002,
+    "Food Organics": 0.0,
+    "Glass": 0.0003,
+    "Metal": 0.0001,
+    "Miscellaneous Trash": 0.0013,
+    "Paper": 0.0009,
+    "Plastic": 0.9971,
+    "Textile Trash": 0.0,
+    "Vegetation": 0.0
+  }
+}
+```
+
+The `confidence` field is the model's **Softmax score**, not a calibrated probability of correctness. Returned values are rounded to four decimal places.
+
+## Project structure
 ```
 WasteVision/
 ├── src/
 │   ├── analysis/
-│   │   └── eda.py                  # Dataset exploration and checks
+│   │   ├── eda.py
+│   │   ├── check_duplicates.py
+│   │   └── check_near_duplicates.py
 │   ├── data/
-│   │   ├── download.py             # Download and extract RealWaste
-│   │   └── dataset.py              # Transforms, splits, DataLoaders
+│   │   ├── download.py
+│   │   └── dataset.py
 │   ├── models/
-│   │   ├── cnn.py                  # Custom WasteCNN
-│   │   └── efficientnet.py         # EfficientNet-B0 model factory
+│   │   ├── cnn.py
+│   │   └── efficientnet.py
 │   ├── training/
-│   │   ├── train.py                # WasteCNN training
-│   │   └── train_efficientnet.py   # Transfer-learning training
-│   └── evaluation/
-│       ├── evaluate.py             # WasteCNN evaluation
-│       └── evaluate_efficientnet.py # EfficientNet metrics and confusion matrix
+│   │   ├── train.py
+│   │   └── train_efficientnet.py
+│   ├── evaluation/
+│   │   ├── evaluate.py
+│   │   ├── evaluate_efficientnet.py
+│   │   └── evaluate_test.py
+│   ├── inference/
+│   │   └── predict.py
+│   └── api/
+│       └── main.py
+├── tests/
+│   ├── test_api.py
+│   └── test_integration.py
 ├── reports/
 │   └── figures/
-│       └── efficientnet_b0_confusion_matrix.png
+│       ├── efficientnet_b0_confusion_matrix.png
+│       ├── efficientnet_b0_classification_report.txt
+│       ├── efficientnet_b0_test_confusion_matrix.png
+│       └── efficientnet_b0_test_report.txt
 ├── data/
-│   └── raw/                       # Downloaded dataset (local)
+│   └── raw/                       # Local dataset, excluded from Git
+├── Dockerfile
+├── .dockerignore
 ├── requirements.txt
+├── requirements-api.txt
 ├── .gitignore
 └── README.md
 ```
 Model checkpoints such as efficientnet_b0_best_acc_30.pth are generated by training and may be stored separately from the source repository.
-# Getting started
-1. Obtain the dataset
-```commandline
-python -m src.data.download
+## Getting started
+
+### 1. Clone and set up
+
+```bash
+git clone https://github.com/Skorozp/WasteVision.git
+cd WasteVision
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-api.txt
 ```
-2. Inspect the DataLoaders
-```commandline
+
+### 2. Download and inspect RealWaste
+
+```bash
+python -m src.data.download
 python -m src.data.dataset
 ```
-3. Train the models
-```commandline
+
+### 3. Train a model
+
+```bash
+# Custom CNN baseline
 python -m src.training.train
-```
-```commandline
+
+# EfficientNet-B0 transfer learning
 python -m src.training.train_efficientnet
 ```
-4. Evaluate
-```commandline
+
+Training produces model checkpoints in the project root. To run predictions **without retraining**, place an existing compatible `efficientnet_b0_best_acc_30.pth` checkpoint there.
+
+### 4. Evaluate the models
+
+```bash
+# WasteCNN validation metrics
 python -m src.evaluation.evaluate
-```
-```commandline
+
+# EfficientNet-B0 validation metrics
 python -m src.evaluation.evaluate_efficientnet
+
+# Final EfficientNet-B0 test evaluation
+python -m src.evaluation.evaluate_test
 ```
 
-# Roadmap
-- [x] Download and explore RealWaste
-- [x] Implement reproducible stratified train/validation/test indices
-- [x] Build and train a custom CNN from scratch
-- [x] Add Apple MPS training support
-- [x] Train EfficientNet-B0 with frozen pretrained features
-- [x] Compare validation accuracy and analyze a confusion matrix
-- [ ] Audit cross-split duplicates and near-duplicates
-- [ ] Evaluate the selected model once on the untouched test split
-- [ ] Package an inference API with a stable class-label mapping
-- [ ] Build a Telegram bot for photo-based waste classification
-- [ ] Explore fine-tuning, calibration, and additional data
-- [ ] Containerize and document deployment
+The test split should not be used to tune the model or repeatedly select checkpoints.
 
-# Why this project?
+### 5. Classify a local image
+
+```bash
+python -m src.inference.predict sample.jpg
+```
+
+### 6. Run the FastAPI server
+
+```bash
+python -m uvicorn src.api.main:app --reload
+```
+
+Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) to inspect and try the endpoints, or send an image from the terminal:
+
+```bash
+curl -X POST -F "file=@sample.jpg" http://127.0.0.1:8000/predict
+```
+
+### 7. Run automated tests
+
+```bash
+python -m pip install pytest httpx
+python -m pytest tests/ -v
+```
+
+The project currently has **six passing tests**: five API tests using a fake classifier and one integration test using the actual checkpoint. The integration test requires the checkpoint in the project root.
+
+For the optional perceptual-hash audit, install `ImageHash` and run:
+
+```bash
+python -m pip install ImageHash
+python -m src.analysis.check_near_duplicates
+```
+
+## Docker
+
+The API has also been built and tested locally inside a Docker container. The container uses **CPU inference**; it does not use Apple's MPS backend.
+
+Build the image:
+
+```bash
+docker build -t wastevision-api:0.1.0 .
+```
+
+Run with the trained checkpoint mounted as a read-only file:
+
+```bash
+docker run --rm \
+  --name wastevision-api \
+  -p 127.0.0.1:8000:8000 \
+  -v "$PWD/efficientnet_b0_best_acc_30.pth:/app/efficientnet_b0_best_acc_30.pth:ro" \
+  wastevision-api:0.1.0
+```
+
+Check the service:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl -X POST -F "file=@sample.jpg" http://127.0.0.1:8000/predict
+```
+
+This runs the API **locally**, not on a publicly accessible server. Public HTTPS deployment is planned.
+
+## Roadmap
+- [x] Download and explore RealWaste
+- [x] Create stratified train/validation/test splits
+- [x] Implement and train WasteCNN from scratch
+- [x] Train EfficientNet-B0 using transfer learning
+- [x] Analyze validation metrics and confusion matrices
+- [x] Check cross-split SHA-256 duplicates and screen for near-duplicates with pHash
+- [x] Evaluate the selected model on the held-out test split
+- [x] Implement single-image inference and a FastAPI backend
+- [x] Add six automated backend tests
+- [x] Build and verify the Dockerized API locally
+- [ ] Manually review flagged near-duplicate image pairs
+- [ ] Add production hardening, CI, and public HTTPS deployment
+- [ ] Build and connect the mobile application (no registration required)
+- [ ] Explore fine-tuning, confidence calibration, and additional data
+
+## Why this project?
 WasteVision is both a practical computer vision prototype and an exercise in building an ML system from the ground up. Rather than only calling a pretrained classifier, the project develops a small CNN baseline, measures its limitations, introduces transfer learning, and evaluates the improvement with per-class metrics.
 The main takeaway so far: a strong pretrained visual representation can make a major difference when labeled data is limited.
