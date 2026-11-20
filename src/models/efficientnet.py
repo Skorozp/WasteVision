@@ -8,8 +8,8 @@ from torchvision.models import (
 )
 
 
-def create_efficientnet(num_classes=9):
-    weights = EfficientNet_B0_Weights.DEFAULT
+def create_efficientnet(num_classes=9, pretrained=True):
+    weights = EfficientNet_B0_Weights.DEFAULT if pretrained else None
 
     model = efficientnet_b0(weights=weights)
 
