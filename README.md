@@ -10,7 +10,7 @@ The project compares two approaches:
 1. WasteCNN - a lightweight convolutional neural network designed and trained from scratch.
 2. EfficientNet-B0 - an ImageNet-pretrained model adapted to the same nine waste categories using transfer learning.
 
-The first milestone is a working single-image, single-label classifier. A Telegram bot interface is planned, but is not implemented in the current version.
+The first milestone is a working single-image, single-label classifier. 
 
 ## Results
 
